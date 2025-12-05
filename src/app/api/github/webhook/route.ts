@@ -1,3 +1,4 @@
+import { parsePullRequestEvent } from "@/app/lib/github/parsePullRequestEvent";
 import { verifyGithubSignature } from "@/app/lib/github/verifySignature";
 import { hasErrorCode } from "@/types/utills";
 import { NextRequest, NextResponse } from "next/server";
@@ -23,6 +24,18 @@ export async function POST(req: NextRequest) {
       deliveryId,
       action: payload?.action,
     });
+
+    const prContext = parsePullRequestEvent({
+      event,
+      payload,
+    });
+
+    if (!prContext) {
+      console.log("ℹ️ Not a target pull_request event. Skipped.");
+      return NextResponse.json({ ok: true, skipped: true }, { status: 200 });
+    }
+
+    console.log("🧩 Parsed PR context", prContext);
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (e: unknown) {
