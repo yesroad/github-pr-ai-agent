@@ -1,6 +1,5 @@
-import { hasErrorCode, Nullable } from "@/types/utills";
+import { Nullable } from "@/types/utills";
 import crypto from "crypto";
-import { NextResponse } from "next/server";
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
