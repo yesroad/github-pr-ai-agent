@@ -37,3 +37,9 @@ export interface IGithubWebhookPullRequestPayload {
   };
   [key: string]: unknown;
 }
+
+export interface IParsedDiffFile {
+  fromPath: string;
+  toPath: string;
+  chunks: string[];
+}

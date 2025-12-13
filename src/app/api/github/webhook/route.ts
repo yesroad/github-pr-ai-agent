@@ -1,4 +1,6 @@
 import { getInstallationAccessToken } from "@/app/lib/github/appAuthentication";
+import { splitDiffByFile } from "@/app/lib/github/diffParser";
+import fetchPullRequestDiff from "@/app/lib/github/fetchPullRequestDiff";
 import parsePullRequestEvent from "@/app/lib/github/parsePullRequestEvent";
 import verifyGithubSignature from "@/app/lib/github/verifySignature";
 import { hasErrorCode } from "@/types/utils";
@@ -42,12 +44,30 @@ export async function POST(req: NextRequest) {
       prContext.installationId
     );
 
-    console.log("🔑 [GitHub] installation token issued", {
-      length: installationToken.length,
+    // PR diff 조회
+    const diffText = await fetchPullRequestDiff({
+      owner: prContext.owner,
+      repo: prContext.repo,
+      pullNumber: prContext.pullNumber,
+      installationToken,
     });
 
-    // ✅ 지금 단계(3번)에서는 여기까지만 성공하면 OK
-    return NextResponse.json({ ok: true }, { status: 200 });
+    console.log("📄 [Diff] fetched", {
+      chars: diffText.length,
+      firstLine: diffText.split("\n")[0],
+    });
+
+    const files = splitDiffByFile(diffText);
+
+    console.log("🧩 [Diff] files", {
+      count: files.length,
+      sample: files[0]?.toPath ?? null,
+    });
+
+    return NextResponse.json(
+      { ok: true, diffFiles: files.length },
+      { status: 200 }
+    );
   } catch (e: unknown) {
     if (hasErrorCode(e) && e.code === "INVALID_SIGNATURE") {
       console.error("🛑 [Webhook] invalid signature");

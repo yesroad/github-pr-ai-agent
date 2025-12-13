@@ -35,8 +35,10 @@ async function fetchPullRequestDiff({
 
   // 너무 짧거나 비어있으면 로그로 확인
   if (!diffText || diffText.trim().length === 0) {
-    throw new Error("PR diff is empty");
+    throw new Error("PR에 변경 사항(diff)이 없습니다.");
   }
 
   return diffText;
 }
+
+export default fetchPullRequestDiff;
