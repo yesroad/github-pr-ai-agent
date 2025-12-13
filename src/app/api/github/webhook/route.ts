@@ -1,6 +1,6 @@
 import { parsePullRequestEvent } from "@/app/lib/github/parsePullRequestEvent";
 import { verifyGithubSignature } from "@/app/lib/github/verifySignature";
-import { hasErrorCode } from "@/types/utills";
+import { hasErrorCode } from "@/types/utils";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";

@@ -12,7 +12,7 @@ export const openai = OPENAI_API_KEY
 /**
  * LLM 클라이언트가 설정되어 있는지 보장하는 assertion 함수
  */
-export function assertLlmClient(): asserts openai is OpenAI {
+export function assertLlmClient() {
   if (!openai) {
     throw new Error("OPENAI_API_KEY is not set. LLM client is not configured.");
   }

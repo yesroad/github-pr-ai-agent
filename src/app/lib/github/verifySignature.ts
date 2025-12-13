@@ -1,7 +1,13 @@
-import { Nullable } from "@/types/utills";
+import { Nullable } from "@/types/utils";
 import crypto from "crypto";
 
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET;
+
+console.log("[verifySignature.ts] loaded", {
+  hasSecret: Boolean(WEBHOOK_SECRET),
+  length: WEBHOOK_SECRET?.length ?? 0,
+  nodeEnv: process.env.NODE_ENV,
+});
 
 interface IVerifySignatureParams {
   signature: Nullable<string>;
@@ -12,6 +18,7 @@ export async function verifyGithubSignature({
   signature,
   payload,
 }: IVerifySignatureParams): Promise<void> {
+  console.log("WEBHOOK_SECRET", WEBHOOK_SECRET);
   if (!WEBHOOK_SECRET) {
     throw new Error("GITHUB_WEBHOOK_SECRET is not set");
   }

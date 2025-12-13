@@ -1,6 +1,6 @@
 // src/lib/github/parsePullRequestEvent.ts
 
-import { Nullable } from "@/types/utills";
+import { Nullable } from "@/types/utils";
 
 /**
  * GitHub의 pull_request Webhook payload 중
@@ -32,7 +32,7 @@ interface IPullRequestEventPayload {
  * "PR 컨텍스트" 타입.
  */
 export interface IParsedPRContext {
-  owner: string; // 예: "kim-eunggil"
+  owner: string; // 예: "yesroad"
   repo: string; // 예: "github-pr-ai-agent"
   pullNumber: number; // PR 번호
   headSha: string; // 변경된 코드가 있는 커밋 SHA
