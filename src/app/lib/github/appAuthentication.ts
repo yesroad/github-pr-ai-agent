@@ -1,72 +1,71 @@
 import jwt from "jsonwebtoken";
 
-const GITHUB_APP_ID = process.env.GITHUB_APP_ID;
-const GITHUB_APP_PRIVATE_KEY = process.env.GITHUB_APP_PRIVATE_KEY;
+const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET;
+const APP_ID = process.env.GITHUB_APP_ID;
+const PRIVATE_KEY = process.env.GITHUB_APP_PRIVATE_KEY;
+const OPEN_API_KEY = process.env.OPEN_API_KEY;
+
+function normalizePrivateKey(raw: string): string {
+  let key = raw.trim();
+
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1);
+  }
+
+  key = key.replace(/\\n/g, "\n");
+  key = key.replace(/\r/g, "");
+
+  return key;
+}
 
 export function createAppJwt(): string {
-  if (!GITHUB_APP_ID) {
-    throw new Error("GITHUB_APP_ID is not set");
-  }
+  const privateKey = normalizePrivateKey(PRIVATE_KEY ?? "");
 
-  if (!GITHUB_APP_PRIVATE_KEY) {
-    throw new Error("GITHUB_APP_PRIVATE_KEY is not set");
-  }
-
-  const nowInSeconds = Math.floor(Date.now() / 1000);
+  // iat/exp 권장: exp는 최대 10분
+  const now = Math.floor(Date.now() / 1000);
 
   const payload = {
-    iat: nowInSeconds - 60,
-    exp: nowInSeconds + 9 * 60,
-    iss: GITHUB_APP_ID,
+    iat: now - 60,
+    exp: now + 600,
+    iss: APP_ID,
   };
 
-  const token = jwt.sign(payload, GITHUB_APP_PRIVATE_KEY, {
-    algorithm: "RS256",
-  });
-
-  return token;
+  return jwt.sign(payload, privateKey, { algorithm: "RS256" });
 }
 
 export async function getInstallationAccessToken(
   installationId: number
 ): Promise<string> {
-  if (!Number.isFinite(installationId)) {
-    throw new Error("installationId must be a valid number");
-  }
+  const token = createAppJwt();
 
-  const appJwt = createAppJwt();
+  const res = await fetch(
+    `https://api.github.com/app/installations/${installationId}/access_tokens`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "github-pr-ai-agent",
+      },
+    }
+  );
 
-  const url = `https://api.github.com/app/installations/${installationId}/access_tokens`;
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${appJwt}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": "github-pr-ai-agent",
-    },
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-
-    console.error("Failed to get installation access token", {
-      status: response.status,
-      statusText: response.statusText,
-      body: text,
-    });
     throw new Error(
-      `GitHub API error: ${response.status} ${response.statusText}`
+      `Installation token 생성 실패 (status: ${res.status}, message: ${res.statusText}, response: ${text})`
     );
   }
 
-  const data = (await response.json()) as {
-    token: string;
-    expires_at: string;
-  };
+  const data = (await res.json()) as { token: string };
 
   if (!data.token) {
-    throw new Error("No token in installation access token response");
+    throw new Error("설치 토큰 생성 응답에 토큰이 포함되어 있지 않습니다.");
   }
 
   return data.token;
