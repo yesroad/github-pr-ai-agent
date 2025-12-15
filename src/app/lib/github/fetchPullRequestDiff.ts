@@ -26,7 +26,7 @@ async function fetchPullRequestDiff({
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.error("[fetchPullRequestDiff] GitHub API error", {
+    console.error("[fetchPullRequestDiff] GitHub API 오류", {
       status: res.status,
       statusText: res.statusText,
       response: text,
@@ -39,7 +39,7 @@ async function fetchPullRequestDiff({
 
   // 너무 짧거나 비어있으면 로그로 확인
   if (!diffText || diffText.trim().length === 0) {
-    console.warn("[fetchPullRequestDiff] Empty diff", {
+    console.warn("[fetchPullRequestDiff] 변경 사항이 없습니다", {
       owner,
       repo,
       pullNumber,

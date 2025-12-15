@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
     if (!prContext)
       return NextResponse.json({ ok: true, skipped: true }, { status: 200 });
 
-    // 인증 성공 시 202로 gitHub에 즉시 응답
     const response = NextResponse.json(
       { ok: true, accepted: true },
       { status: 202 }
