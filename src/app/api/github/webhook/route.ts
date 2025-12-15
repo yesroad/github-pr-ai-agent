@@ -6,7 +6,9 @@ import fetchPullRequestDiff from "@/app/lib/github/fetchPullRequestDiff";
 import { listPullRequestReviews } from "@/app/lib/github/listPullRequestReviews";
 import parsePullRequestEvent from "@/app/lib/github/parsePullRequestEvent";
 import renderSummaryReviewMarkdown from "@/app/lib/github/renderReviewMarkdown";
+import { buildReviewDisclaimer } from "@/app/lib/github/reviewDisclaimer";
 import { attachMarkerToBody } from "@/app/lib/github/reviewMarker";
+import decideReviewEvent from "@/app/lib/github/reviewPolicy";
 import shouldSkipReviewByHeadSha from "@/app/lib/github/shouldSkipReview";
 import verifyGithubSignature from "@/app/lib/github/verifySignature";
 import { runSummaryReview } from "@/app/lib/llm/runSummaryReview";
@@ -71,11 +73,23 @@ export async function POST(req: NextRequest) {
     });
 
     const files = splitDiffByFile(diffText);
-    const diffContext = diffContextSummary({ files });
+
+    const { context: diffContext, meta } = buildDiffContextForSummary({
+      files,
+      maxFiles: 20,
+      maxCharsPerFile: 8000,
+    });
+
+    const disclaimer = buildReviewDisclaimer(meta);
 
     const llmJson = await runSummaryReview(diffContext);
 
-    const markdown = renderSummaryReviewMarkdown(llmJson);
+    const markdown = renderSummaryReviewMarkdown(llmJson, {
+      maxIssues: 15,
+      preface: disclaimer,
+    });
+
+    const event = decideReviewEvent(llmJson);
 
     const finalBody = attachMarkerToBody({
       body: markdown,
@@ -88,6 +102,7 @@ export async function POST(req: NextRequest) {
       pullNumber: prContext.pullNumber,
       installationToken,
       body: finalBody,
+      event,
     });
 
     return NextResponse.json(

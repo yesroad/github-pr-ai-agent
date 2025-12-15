@@ -1,9 +1,12 @@
+import type { TGithubReviewEvent } from "@/types/lib/github";
+
 interface ICreatePullRequestReview {
   owner: string;
   repo: string;
   pullNumber: number;
   installationToken: string;
   body: string;
+  event: TGithubReviewEvent;
 }
 
 async function createPullRequestReview({
@@ -12,6 +15,7 @@ async function createPullRequestReview({
   pullNumber,
   installationToken,
   body,
+  event,
 }: ICreatePullRequestReview): Promise<void> {
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`,
@@ -25,7 +29,7 @@ async function createPullRequestReview({
       },
       body: JSON.stringify({
         body,
-        event: "COMMENT",
+        event,
       }),
     }
   );
@@ -33,7 +37,7 @@ async function createPullRequestReview({
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(
-      `Failed to create PR review: ${res.status} ${res.statusText} ${text}`
+      `PR 리뷰 생성 실패: ${res.status} ${res.statusText} ${text}`
     );
   }
 }

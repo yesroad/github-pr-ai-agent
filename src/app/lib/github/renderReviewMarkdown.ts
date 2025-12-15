@@ -1,25 +1,15 @@
-import { ILlmReviewOutput, TReviewSeverity } from "@/types/lib/llm";
+import type { ILlmReviewOutput, TReviewSeverity } from "@/types/lib/llm";
 
 const MAX_ISSUES_DEFAULT = 15;
 
-/**
- * @description 디버그용 JSON 첨부 여부
- */
 function shouldAttachRawJson(): boolean {
   return process.env.ENABLE_REVIEW_DEBUG_JSON === "true";
 }
 
 function severityRank(sev: TReviewSeverity): number {
-  switch (sev) {
-    case "high":
-      return 0;
-    case "medium":
-      return 1;
-    case "low":
-      return 2;
-    default:
-      return 3;
-  }
+  if (sev === "high") return 0;
+  if (sev === "medium") return 1;
+  return 2;
 }
 
 function emojiBySeverity(sev: TReviewSeverity) {
@@ -34,14 +24,14 @@ function formatWhere(file: string, line: number) {
   return `\`${file}:${line}\``;
 }
 
-/**
- * @description 전체 요약 리뷰 Markdown
- */
-function renderSummaryReviewMarkdown(
+export function renderSummaryReviewMarkdown(
   result: ILlmReviewOutput,
-  options?: { maxIssues?: number }
+  options?: { maxIssues?: number; preface?: string }
 ): string {
   const maxIssues = options?.maxIssues ?? MAX_ISSUES_DEFAULT;
+  const preface = options?.preface?.trim()
+    ? `${options.preface.trim()}\n\n`
+    : "";
 
   const summary =
     (typeof result.summary === "string" && result.summary.trim()) ||
@@ -72,6 +62,12 @@ function renderSummaryReviewMarkdown(
   const lines: string[] = [];
   lines.push("## 🤖 AI Code Review Summary");
   lines.push("");
+
+  if (preface) {
+    lines.push(preface.trimEnd());
+    lines.push("");
+  }
+
   lines.push("### 요약");
   lines.push(`- ${summary}`);
   lines.push("");
@@ -113,7 +109,6 @@ function renderSummaryReviewMarkdown(
     }
   }
 
-  // 5) 필요할 때만 Raw JSON 첨부
   if (shouldAttachRawJson()) {
     lines.push("<details>");
     lines.push("<summary>LLM Raw Output (JSON)</summary>");
@@ -127,5 +122,3 @@ function renderSummaryReviewMarkdown(
 
   return lines.join("\n");
 }
-
-export default renderSummaryReviewMarkdown;
