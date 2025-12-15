@@ -1,47 +1,79 @@
-import { hasErrorCode, Nullable } from "@/types/utills";
 import crypto from "crypto";
-import { NextResponse } from "next/server";
 
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+import { Nullable } from "@/types/utils";
 
-interface IVerifySignatureParams {
-  signature: Nullable<string>;
-  payload: string;
+const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? "";
+
+interface IVerifyGithubSignature {
+  signature256: Nullable<string>;
+  signature1: Nullable<string>;
+  payload: Buffer;
 }
 
-export async function verifyGithubSignature({
-  signature,
-  payload,
-}: IVerifySignatureParams): Promise<void> {
-  if (!WEBHOOK_SECRET) {
-    throw new Error("GITHUB_WEBHOOK_SECRET is not set");
-  }
+interface IVerifyHmacSignature {
+  algorithm: "sha256" | "sha1";
+  payload: Buffer;
+  signature: string;
+}
 
-  const expectedSignature = crypto
-    .createHmac("sha256", WEBHOOK_SECRET)
+function verifyHmacSignature({
+  algorithm,
+  payload,
+  signature,
+}: IVerifyHmacSignature) {
+  const digest = crypto
+    .createHmac(algorithm, WEBHOOK_SECRET)
     .update(payload)
     .digest("hex");
 
-  const received = signature ?? "";
+  const expected = `${algorithm}=${digest}`;
 
-  if (received.length !== expectedSignature.length) {
-    const error = new Error(
-      "Invalid GitHub Webhook signature (length mismatch)"
-    ) as Error & { code?: string };
-    error.code = "INVALID_SIGNATURE";
-    throw error;
-  }
+  const ok =
+    signature.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 
-  const isValid = crypto.timingSafeEqual(
-    Buffer.from(expectedSignature),
-    Buffer.from(received)
-  );
-
-  if (!isValid) {
-    const error = new Error("Invalid GitHub Webhook signature") as Error & {
-      code?: string;
-    };
-    error.code = "INVALID_SIGNATURE";
-    throw error;
+  if (!ok) {
+    const err = new Error(`Invalid signature (${algorithm})`);
+    (err as { code?: string }).code = "INVALID_SIGNATURE";
+    throw err;
   }
 }
+
+/**
+ * @description GitHub webhook signature 검증
+ */
+async function verifyGithubSignature({
+  signature256,
+  signature1,
+  payload,
+}: IVerifyGithubSignature) {
+  if (!WEBHOOK_SECRET) throw new Error("GITHUB_WEBHOOK_SECRET 가 없습니다.");
+
+  // sha256 검증 (우선)
+  if (signature256) {
+    verifyHmacSignature({
+      algorithm: "sha256",
+      payload,
+      signature: signature256,
+    });
+
+    return;
+  }
+
+  // sha1 fallback
+  if (signature1) {
+    verifyHmacSignature({
+      algorithm: "sha1",
+      payload,
+      signature: signature1,
+    });
+
+    return;
+  }
+
+  const err = new Error("signature headers 가 없습니다.");
+  (err as { code?: string }).code = "INVALID_SIGNATURE";
+  throw err;
+}
+
+export default verifyGithubSignature;
