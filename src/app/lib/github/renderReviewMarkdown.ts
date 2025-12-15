@@ -24,7 +24,7 @@ function formatWhere(file: string, line: number) {
   return `\`${file}:${line}\``;
 }
 
-export function renderSummaryReviewMarkdown(
+function renderReviewMarkdown(
   result: ILlmReviewOutput,
   options?: { maxIssues?: number; preface?: string }
 ): string {
@@ -122,3 +122,5 @@ export function renderSummaryReviewMarkdown(
 
   return lines.join("\n");
 }
+
+export default renderReviewMarkdown;

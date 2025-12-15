@@ -29,7 +29,13 @@ export async function runSummaryReview(
 
   const system = `
 You are a strict code reviewer.
+
 Return ONLY valid JSON with the exact schema below. No markdown, no extra text.
+
+IMPORTANT LANGUAGE RULE:
+- All natural language fields MUST be written in Korean:
+  - summary, title, detail, suggestion
+- Keep technical tokens (file paths, function names, env var names, HTTP headers, code identifiers) as-is.
 
 Schema:
 {
@@ -51,14 +57,19 @@ Rules:
 - If you can't confidently map line number, use line = 0.
 - File must be a relative path (no "a/" or "b/" prefix).
 - Focus on actionable issues and avoid vague feedback.
-`;
+`.trim();
 
   const user = `
-Review the following Git diff. Provide a concise summary and a list of issues.
+Review the following Git diff.
+
+Output requirements:
+- Write summary/issues in Korean.
+- Use concise, actionable language.
+- Do not include any text outside JSON.
 
 DIFF:
 ${diffContext}
-`;
+`.trim();
 
   const res = await openai.chat.completions.create({
     model,

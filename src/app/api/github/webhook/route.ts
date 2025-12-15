@@ -5,7 +5,7 @@ import { splitDiffByFile } from "@/app/lib/github/diffParser";
 import fetchPullRequestDiff from "@/app/lib/github/fetchPullRequestDiff";
 import { listPullRequestReviews } from "@/app/lib/github/listPullRequestReviews";
 import parsePullRequestEvent from "@/app/lib/github/parsePullRequestEvent";
-import renderSummaryReviewMarkdown from "@/app/lib/github/renderReviewMarkdown";
+import renderReviewMarkdown from "@/app/lib/github/renderReviewMarkdown";
 import { buildReviewDisclaimer } from "@/app/lib/github/reviewDisclaimer";
 import { attachMarkerToBody } from "@/app/lib/github/reviewMarker";
 import decideReviewEvent from "@/app/lib/github/reviewPolicy";
@@ -20,7 +20,7 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   const rawBody = Buffer.from(await req.arrayBuffer());
 
-  const event = req.headers.get("x-github-event");
+  const githubEvent = req.headers.get("x-github-event");
   const signature256 = req.headers.get("x-hub-signature-256");
   const signature1 = req.headers.get("x-hub-signature");
 
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     });
 
     const payload = JSON.parse(rawBody.toString("utf8"));
-    const prContext = parsePullRequestEvent({ event, payload });
+    const prContext = parsePullRequestEvent({ event: githubEvent, payload });
 
     if (!prContext)
       return NextResponse.json({ ok: true, skipped: true }, { status: 200 });
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     const files = splitDiffByFile(diffText);
 
-    const { context: diffContext, meta } = buildDiffContextForSummary({
+    const { context: diffContext, meta } = diffContextSummary({
       files,
       maxFiles: 20,
       maxCharsPerFile: 8000,
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 
     const llmJson = await runSummaryReview(diffContext);
 
-    const markdown = renderSummaryReviewMarkdown(llmJson, {
+    const markdown = renderReviewMarkdown(llmJson, {
       maxIssues: 15,
       preface: disclaimer,
     });
