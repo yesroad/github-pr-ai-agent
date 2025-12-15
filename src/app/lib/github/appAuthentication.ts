@@ -1,9 +1,20 @@
 import jwt from "jsonwebtoken";
 
-const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET;
-const APP_ID = process.env.GITHUB_APP_ID;
-const PRIVATE_KEY = process.env.GITHUB_APP_PRIVATE_KEY;
-const OPEN_API_KEY = process.env.OPEN_API_KEY;
+interface IGithubAppEnv {
+  appId: string; // GitHub App ID (string number)
+  privateKey: string; // PEM
+}
+
+function isNumericString(v: string): boolean {
+  return /^[0-9]+$/.test(v);
+}
+
+function looksLikePemPrivateKey(key: string): boolean {
+  // RSA/PKCS8 둘 다 허용
+  return (
+    key.includes("BEGIN PRIVATE KEY") || key.includes("BEGIN RSA PRIVATE KEY")
+  );
+}
 
 function normalizePrivateKey(raw: string): string {
   let key = raw.trim();
@@ -21,8 +32,34 @@ function normalizePrivateKey(raw: string): string {
   return key;
 }
 
+function getGithubAppEnv(): IGithubAppEnv {
+  const appId = process.env.GITHUB_APP_ID?.trim() ?? "";
+  const rawKey = process.env.GITHUB_APP_PRIVATE_KEY ?? "";
+
+  if (!appId) {
+    throw new Error("GITHUB_APP_ID is not set");
+  }
+  if (!isNumericString(appId)) {
+    throw new Error("GITHUB_APP_ID must be a numeric string");
+  }
+
+  if (!rawKey.trim()) {
+    throw new Error("GITHUB_APP_PRIVATE_KEY is not set");
+  }
+
+  const privateKey = normalizePrivateKey(rawKey);
+
+  if (!looksLikePemPrivateKey(privateKey)) {
+    throw new Error(
+      "GITHUB_APP_PRIVATE_KEY does not look like a PEM private key"
+    );
+  }
+
+  return { appId, privateKey };
+}
+
 export function createAppJwt(): string {
-  const privateKey = normalizePrivateKey(PRIVATE_KEY ?? "");
+  const { appId, privateKey } = getGithubAppEnv();
 
   // iat/exp 권장: exp는 최대 10분
   const now = Math.floor(Date.now() / 1000);
@@ -30,7 +67,7 @@ export function createAppJwt(): string {
   const payload = {
     iat: now - 60,
     exp: now + 600,
-    iss: APP_ID,
+    iss: appId,
   };
 
   return jwt.sign(payload, privateKey, { algorithm: "RS256" });

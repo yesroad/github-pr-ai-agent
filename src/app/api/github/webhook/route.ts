@@ -1,17 +1,6 @@
-import { getInstallationAccessToken } from "@/app/lib/github/appAuthentication";
-import createPullRequestReview from "@/app/lib/github/createPullRequestReview";
-import diffContextSummary from "@/app/lib/github/diffContextSummary";
-import { splitDiffByFile } from "@/app/lib/github/diffParser";
-import fetchPullRequestDiff from "@/app/lib/github/fetchPullRequestDiff";
-import { listPullRequestReviews } from "@/app/lib/github/listPullRequestReviews";
 import parsePullRequestEvent from "@/app/lib/github/parsePullRequestEvent";
-import renderReviewMarkdown from "@/app/lib/github/renderReviewMarkdown";
-import { buildReviewDisclaimer } from "@/app/lib/github/reviewDisclaimer";
-import { attachMarkerToBody } from "@/app/lib/github/reviewMarker";
-import decideReviewEvent from "@/app/lib/github/reviewPolicy";
-import shouldSkipReviewByHeadSha from "@/app/lib/github/shouldSkipReview";
+import runPullRequestReviewJob from "@/app/lib/github/runPullRequestReviewJob";
 import verifyGithubSignature from "@/app/lib/github/verifySignature";
-import { runSummaryReview } from "@/app/lib/llm/runSummaryReview";
 import { hasErrorCode } from "@/types/utils";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -37,78 +26,15 @@ export async function POST(req: NextRequest) {
     if (!prContext)
       return NextResponse.json({ ok: true, skipped: true }, { status: 200 });
 
-    console.log("🧩 [Webhook] PR context", prContext);
-
-    // 토큰 발급
-    const installationToken = await getInstallationAccessToken(
-      prContext.installationId
+    // 인증 성공 시 202로 gitHub에 즉시 응답
+    const response = NextResponse.json(
+      { ok: true, accepted: true },
+      { status: 202 }
     );
 
-    // 중복 리뷰 방지
-    const existingReviews = await listPullRequestReviews({
-      owner: prContext.owner,
-      repo: prContext.repo,
-      pullNumber: prContext.pullNumber,
-      installationToken,
-    });
+    void runPullRequestReviewJob(prContext);
 
-    if (
-      shouldSkipReviewByHeadSha({
-        reviews: existingReviews,
-        headSha: prContext.headSha,
-      })
-    ) {
-      return NextResponse.json(
-        { ok: true, skipped: "already_reviewed" },
-        { status: 200 }
-      );
-    }
-
-    // PR diff 조회
-    const diffText = await fetchPullRequestDiff({
-      owner: prContext.owner,
-      repo: prContext.repo,
-      pullNumber: prContext.pullNumber,
-      installationToken,
-    });
-
-    const files = splitDiffByFile(diffText);
-
-    const { context: diffContext, meta } = diffContextSummary({
-      files,
-      maxFiles: 20,
-      maxCharsPerFile: 8000,
-    });
-
-    const disclaimer = buildReviewDisclaimer(meta);
-
-    const llmJson = await runSummaryReview(diffContext);
-
-    const markdown = renderReviewMarkdown(llmJson, {
-      maxIssues: 15,
-      preface: disclaimer,
-    });
-
-    const event = decideReviewEvent(llmJson);
-
-    const finalBody = attachMarkerToBody({
-      body: markdown,
-      headSha: prContext.headSha,
-    });
-
-    await createPullRequestReview({
-      owner: prContext.owner,
-      repo: prContext.repo,
-      pullNumber: prContext.pullNumber,
-      installationToken,
-      body: finalBody,
-      event,
-    });
-
-    return NextResponse.json(
-      { ok: true, diffFiles: files.length },
-      { status: 200 }
-    );
+    return response;
   } catch (e: unknown) {
     if (hasErrorCode(e) && e.code === "INVALID_SIGNATURE") {
       console.error("🛑 [Webhook] invalid signature");

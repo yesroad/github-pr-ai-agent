@@ -1,8 +1,8 @@
 import crypto from "crypto";
 
-import { Nullable } from "@/types/utils";
+import type { Nullable } from "@/types/utils";
 
-const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? "";
+export const INVALID_SIGNATURE_CODE = "INVALID_SIGNATURE" as const;
 
 interface IVerifyGithubSignature {
   signature256: Nullable<string>;
@@ -13,67 +13,90 @@ interface IVerifyGithubSignature {
 interface IVerifyHmacSignature {
   algorithm: "sha256" | "sha1";
   payload: Buffer;
-  signature: string;
+  signature: string; // "sha256=..." 또는 "sha1=..."
+  secret: string;
 }
 
+type TSignatureError = Error & { code: typeof INVALID_SIGNATURE_CODE };
+
+function makeInvalidSignatureError(message: string): TSignatureError {
+  const err = new Error(message) as TSignatureError;
+  err.code = INVALID_SIGNATURE_CODE;
+  return err;
+}
+
+/**
+ * @description HMAC 서명 검증 (공통 로직)
+ * - timingSafeEqual 사용(타이밍 공격 방어)
+ * - signature는 "sha256=<hex>" / "sha1=<hex>" 형태여야 함
+ */
 function verifyHmacSignature({
   algorithm,
   payload,
   signature,
-}: IVerifyHmacSignature) {
+  secret,
+}: IVerifyHmacSignature): void {
   const digest = crypto
-    .createHmac(algorithm, WEBHOOK_SECRET)
+    .createHmac(algorithm, secret)
     .update(payload)
     .digest("hex");
-
   const expected = `${algorithm}=${digest}`;
 
-  const ok =
-    signature.length === expected.length &&
-    crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  // 길이가 다르면 timingSafeEqual을 호출하지 말고 즉시 실패 처리
+  if (signature.length !== expected.length) {
+    throw makeInvalidSignatureError(`Invalid signature (${algorithm})`);
+  }
+
+  const ok = crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
 
   if (!ok) {
-    const err = new Error(`Invalid signature (${algorithm})`);
-    (err as { code?: string }).code = "INVALID_SIGNATURE";
-    throw err;
+    throw makeInvalidSignatureError(`Invalid signature (${algorithm})`);
   }
 }
 
 /**
  * @description GitHub webhook signature 검증
+ * - sha256 우선
+ * - 없으면 sha1 fallback
+ * - 둘 다 없으면 INVALID_SIGNATURE
  */
 async function verifyGithubSignature({
   signature256,
   signature1,
   payload,
-}: IVerifyGithubSignature) {
-  if (!WEBHOOK_SECRET) throw new Error("GITHUB_WEBHOOK_SECRET 가 없습니다.");
+}: IVerifyGithubSignature): Promise<void> {
+  const secret = process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? "";
+  if (!secret) throw new Error("GITHUB_WEBHOOK_SECRET 가 없습니다.");
+
+  const sig256 = signature256?.trim() ?? "";
+  const sig1 = signature1?.trim() ?? "";
+
+  // 둘 다 없으면 즉시 실패
+  if (!sig256 && !sig1) {
+    throw makeInvalidSignatureError("signature headers 가 없습니다.");
+  }
 
   // sha256 검증 (우선)
-  if (signature256) {
+  if (sig256) {
     verifyHmacSignature({
       algorithm: "sha256",
       payload,
-      signature: signature256,
+      signature: sig256,
+      secret,
     });
-
     return;
   }
 
   // sha1 fallback
-  if (signature1) {
-    verifyHmacSignature({
-      algorithm: "sha1",
-      payload,
-      signature: signature1,
-    });
-
-    return;
-  }
-
-  const err = new Error("signature headers 가 없습니다.");
-  (err as { code?: string }).code = "INVALID_SIGNATURE";
-  throw err;
+  verifyHmacSignature({
+    algorithm: "sha1",
+    payload,
+    signature: sig1,
+    secret,
+  });
 }
 
 export default verifyGithubSignature;

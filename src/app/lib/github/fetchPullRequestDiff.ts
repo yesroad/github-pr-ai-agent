@@ -26,15 +26,25 @@ async function fetchPullRequestDiff({
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(
-      `PR diff 조회 실패 (status: ${res.status}, message: ${res.statusText}, response: ${text})`
-    );
+    console.error("[fetchPullRequestDiff] GitHub API error", {
+      status: res.status,
+      statusText: res.statusText,
+      response: text,
+    });
+
+    throw new Error("PR diff를 가져오는 데 실패했습니다.");
   }
 
   const diffText = await res.text();
 
   // 너무 짧거나 비어있으면 로그로 확인
   if (!diffText || diffText.trim().length === 0) {
+    console.warn("[fetchPullRequestDiff] Empty diff", {
+      owner,
+      repo,
+      pullNumber,
+    });
+
     throw new Error("PR에 변경 사항(diff)이 없습니다.");
   }
 
