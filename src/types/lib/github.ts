@@ -52,7 +52,7 @@ export interface IPullRequestReview {
   user?: { login?: string };
   submitted_at?: string | null;
 }
-\export interface DiffContextBuildResult {
+export interface DiffContextBuildResult {
   context: string;
   meta: {
     maxFiles: number;
@@ -60,7 +60,7 @@ export interface IPullRequestReview {
     totalChars: number;
     usedFiles: number;
     truncatedFiles: number; // 파일별 char 제한으로 잘린 파일 수
-    droppedFiles: number;   // maxFiles 때문에 제외된 파일 수
+    droppedFiles: number; // maxFiles 때문에 제외된 파일 수
   };
 }
 export interface IDiffContextBuildResult {
@@ -70,7 +70,7 @@ export interface IDiffContextBuildResult {
     maxCharsPerFile: number;
     totalChars: number;
     usedFiles: number;
-    truncatedFiles: number; 
+    truncatedFiles: number;
     droppedFiles: number;
   };
 }
