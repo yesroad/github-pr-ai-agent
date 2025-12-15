@@ -6,7 +6,7 @@ interface IDiffContext {
   maxFiles?: number;
 }
 
-function diffContext({
+function diffContextSummary({
   files,
   maxCharsPerFile = 8000,
   maxFiles = 20,
@@ -24,4 +24,4 @@ function diffContext({
     .join("\n\n");
 }
 
-export default diffContext;
+export default diffContextSummary;

@@ -43,3 +43,10 @@ export interface IParsedDiffFile {
   toPath: string;
   chunks: string[];
 }
+
+export interface IPullRequestReview {
+  id: number;
+  body: string | null;
+  user?: { login?: string };
+  submitted_at?: string | null;
+}

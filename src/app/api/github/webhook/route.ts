@@ -1,8 +1,15 @@
 import { getInstallationAccessToken } from "@/app/lib/github/appAuthentication";
+import createPullRequestReview from "@/app/lib/github/createPullRequestReview";
+import diffContextSummary from "@/app/lib/github/diffContextSummary";
 import { splitDiffByFile } from "@/app/lib/github/diffParser";
 import fetchPullRequestDiff from "@/app/lib/github/fetchPullRequestDiff";
+import { listPullRequestReviews } from "@/app/lib/github/listPullRequestReviews";
 import parsePullRequestEvent from "@/app/lib/github/parsePullRequestEvent";
+import renderSummaryReviewMarkdown from "@/app/lib/github/renderReviewMarkdown";
+import { attachMarkerToBody } from "@/app/lib/github/reviewMarker";
+import shouldSkipReviewByHeadSha from "@/app/lib/github/shouldSkipReview";
 import verifyGithubSignature from "@/app/lib/github/verifySignature";
+import { runSummaryReview } from "@/app/lib/llm/runSummaryReview";
 import { hasErrorCode } from "@/types/utils";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -12,17 +19,8 @@ export async function POST(req: NextRequest) {
   const rawBody = Buffer.from(await req.arrayBuffer());
 
   const event = req.headers.get("x-github-event");
-  const deliveryId = req.headers.get("x-github-delivery");
   const signature256 = req.headers.get("x-hub-signature-256");
   const signature1 = req.headers.get("x-hub-signature");
-
-  console.log("🌐 [Webhook] incoming", {
-    event,
-    deliveryId,
-    hasSig256: Boolean(signature256),
-    hasSig1: Boolean(signature1),
-    bodyBytes: rawBody.length,
-  });
 
   try {
     await verifyGithubSignature({
@@ -44,6 +42,26 @@ export async function POST(req: NextRequest) {
       prContext.installationId
     );
 
+    // 중복 리뷰 방지
+    const existingReviews = await listPullRequestReviews({
+      owner: prContext.owner,
+      repo: prContext.repo,
+      pullNumber: prContext.pullNumber,
+      installationToken,
+    });
+
+    if (
+      shouldSkipReviewByHeadSha({
+        reviews: existingReviews,
+        headSha: prContext.headSha,
+      })
+    ) {
+      return NextResponse.json(
+        { ok: true, skipped: "already_reviewed" },
+        { status: 200 }
+      );
+    }
+
     // PR diff 조회
     const diffText = await fetchPullRequestDiff({
       owner: prContext.owner,
@@ -52,16 +70,24 @@ export async function POST(req: NextRequest) {
       installationToken,
     });
 
-    console.log("📄 [Diff] fetched", {
-      chars: diffText.length,
-      firstLine: diffText.split("\n")[0],
+    const files = splitDiffByFile(diffText);
+    const diffContext = diffContextSummary({ files });
+
+    const llmJson = await runSummaryReview(diffContext);
+
+    const markdown = renderSummaryReviewMarkdown(llmJson);
+
+    const finalBody = attachMarkerToBody({
+      body: markdown,
+      headSha: prContext.headSha,
     });
 
-    const files = splitDiffByFile(diffText);
-
-    console.log("🧩 [Diff] files", {
-      count: files.length,
-      sample: files[0]?.toPath ?? null,
+    await createPullRequestReview({
+      owner: prContext.owner,
+      repo: prContext.repo,
+      pullNumber: prContext.pullNumber,
+      installationToken,
+      body: finalBody,
     });
 
     return NextResponse.json(
