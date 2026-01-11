@@ -2,9 +2,15 @@ import parsePullRequestEvent from "@/app/lib/github/parsePullRequestEvent";
 import runPullRequestReviewJob from "@/app/lib/github/runPullRequestReviewJob";
 import verifyGithubSignature from "@/app/lib/github/verifySignature";
 import { hasErrorCode } from "@/types/utils";
+import { waitUntil } from "@vercel/functions";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+
+// Give the function enough time for diff fetch + LLM call + review creation.
+// (Effective limit depends on your Vercel plan.)
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const rawBody = Buffer.from(await req.arrayBuffer());
@@ -23,8 +29,9 @@ export async function POST(req: NextRequest) {
     const payload = JSON.parse(rawBody.toString("utf8"));
     const prContext = parsePullRequestEvent({ event: githubEvent, payload });
 
-    if (!prContext)
+    if (!prContext) {
       return NextResponse.json({ ok: true, skipped: true }, { status: 200 });
+    }
 
     const repoFullName = payload?.repository?.full_name;
 
@@ -36,33 +43,37 @@ export async function POST(req: NextRequest) {
       pullNumber: payload?.pull_request?.number,
     });
 
-    // Respond quickly to GitHub, but make sure job errors are not swallowed.
+    // Respond quickly to GitHub
     const response = NextResponse.json(
       { ok: true, accepted: true },
       { status: 202 }
     );
 
-    void runPullRequestReviewJob(prContext).catch((e) => {
-      console.error(
-        "❌ [Job] failed",
-        {
-          event: githubEvent,
-          repo: repoFullName,
-          installationId: prContext.installationId,
-          owner: prContext.owner,
-          repoName: prContext.repo,
-          pullNumber: prContext.pullNumber,
-          headSha: prContext.headSha,
-        },
-        e
-      );
-    });
+    // On Vercel, returning the response can terminate execution;
+    // waitUntil keeps the job running after the 202 response.
+    waitUntil(
+      runPullRequestReviewJob(prContext).catch((e) => {
+        console.error(
+          "❌ [Job] failed",
+          {
+            event: githubEvent,
+            repo: repoFullName,
+            installationId: prContext.installationId,
+            owner: prContext.owner,
+            repoName: prContext.repo,
+            pullNumber: prContext.pullNumber,
+            headSha: prContext.headSha,
+          },
+          e
+        );
+        throw e;
+      })
+    );
 
     return response;
   } catch (e: unknown) {
     if (hasErrorCode(e) && e.code === "INVALID_SIGNATURE") {
       console.error("🛑 [Webhook] invalid signature");
-
       return NextResponse.json(
         { ok: false, error: "Invalid signature" },
         { status: 401 }
@@ -70,7 +81,6 @@ export async function POST(req: NextRequest) {
     }
 
     console.error("❌ [Webhook] error", e);
-
     return NextResponse.json(
       { ok: false, error: "Internal Server Error" },
       { status: 500 }
