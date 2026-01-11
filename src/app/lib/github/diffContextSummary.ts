@@ -38,7 +38,7 @@ function diffContextSummary({
       if (full.length > body.length) truncatedFiles += 1;
 
       const chunk = `# File: ${file}\n${body}`;
-      totalChars += chunk.length;
+      totalChars += body.length;
 
       return chunk;
     })

@@ -22,8 +22,9 @@ async function createPullRequestReview({
     {
       method: "POST",
       headers: {
-        Authorization: `token ${installationToken}`,
+        Authorization: `Bearer ${installationToken}`,
         Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "github-pr-ai-agent",
       },
@@ -37,7 +38,7 @@ async function createPullRequestReview({
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(
-      `PR 리뷰 생성 실패: ${res.status} ${res.statusText} ${text}`
+      `PR 리뷰 생성 실패: ${owner}/${repo}#${pullNumber} ${res.status} ${res.statusText} ${text}`
     );
   }
 }

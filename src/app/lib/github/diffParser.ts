@@ -4,7 +4,7 @@ import { Nullable } from "@/types/utils";
 /**
  * @description unified diff를 "파일 단위"로만 나누는 최소 파서
  */
-export function splitDiffByFile(diffText: string) {
+export function splitDiffByFile(diffText: string): IParsedDiffFile[] {
   const lines = diffText.split("\n");
   const files: IParsedDiffFile[] = [];
 

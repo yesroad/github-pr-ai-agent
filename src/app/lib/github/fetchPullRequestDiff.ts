@@ -16,7 +16,7 @@ async function fetchPullRequestDiff({
     {
       method: "GET",
       headers: {
-        Authorization: `token ${installationToken}`,
+        Authorization: `Bearer ${installationToken}`,
         Accept: "application/vnd.github.v3.diff", // diff 형태로 받기
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "github-pr-ai-agent",
@@ -32,7 +32,9 @@ async function fetchPullRequestDiff({
       response: text,
     });
 
-    throw new Error("PR diff를 가져오는 데 실패했습니다.");
+    throw new Error(
+      `PR diff를 가져오는 데 실패했습니다: ${owner}/${repo}#${pullNumber} (${res.status} ${res.statusText})`
+    );
   }
 
   const diffText = await res.text();

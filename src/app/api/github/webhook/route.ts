@@ -26,12 +26,37 @@ export async function POST(req: NextRequest) {
     if (!prContext)
       return NextResponse.json({ ok: true, skipped: true }, { status: 200 });
 
+    const repoFullName = payload?.repository?.full_name;
+
+    console.log("✅ [Webhook] accepted", {
+      event: githubEvent,
+      action: payload?.action,
+      repo: repoFullName,
+      installationId: payload?.installation?.id,
+      pullNumber: payload?.pull_request?.number,
+    });
+
+    // Respond quickly to GitHub, but make sure job errors are not swallowed.
     const response = NextResponse.json(
       { ok: true, accepted: true },
       { status: 202 }
     );
 
-    void runPullRequestReviewJob(prContext);
+    void runPullRequestReviewJob(prContext).catch((e) => {
+      console.error(
+        "❌ [Job] failed",
+        {
+          event: githubEvent,
+          repo: repoFullName,
+          installationId: prContext.installationId,
+          owner: prContext.owner,
+          repoName: prContext.repo,
+          pullNumber: prContext.pullNumber,
+          headSha: prContext.headSha,
+        },
+        e
+      );
+    });
 
     return response;
   } catch (e: unknown) {

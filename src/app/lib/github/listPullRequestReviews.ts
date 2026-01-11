@@ -18,7 +18,7 @@ export async function listPullRequestReviews({
     {
       method: "GET",
       headers: {
-        Authorization: `token ${installationToken}`,
+        Authorization: `Bearer ${installationToken}`,
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "github-pr-ai-agent",
@@ -29,7 +29,7 @@ export async function listPullRequestReviews({
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(
-      `PR 리뷰 목록 조회 실패: ${res.status} ${res.statusText} ${text}`
+      `PR 리뷰 목록 조회 실패: ${owner}/${repo}#${pullNumber} ${res.status} ${res.statusText} ${text}`
     );
   }
 
