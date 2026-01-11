@@ -98,7 +98,7 @@ export async function getInstallationAccessToken(
       `Installation token 생성 실패 (status: ${res.status}, message: ${res.statusText}, response: ${text})`
     );
   }
-
+  // 테스트용 콘솔
   const data = (await res.json()) as { token?: string; expires_at?: string };
 
   if (!data.token) {
