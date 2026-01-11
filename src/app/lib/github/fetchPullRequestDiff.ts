@@ -26,14 +26,8 @@ async function fetchPullRequestDiff({
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.error("[fetchPullRequestDiff] GitHub API 오류", {
-      status: res.status,
-      statusText: res.statusText,
-      response: text,
-    });
-
     throw new Error(
-      `PR diff를 가져오는 데 실패했습니다: ${owner}/${repo}#${pullNumber} (${res.status} ${res.statusText})`
+      `PR diff를 가져오는 데 실패했습니다: ${owner}/${repo}#${pullNumber} (${res.status} ${res.statusText}) ${text}`
     );
   }
 

@@ -13,15 +13,12 @@ import shouldSkipReviewByHeadSha from "@/app/lib/github/shouldSkipReview";
 import { runSummaryReview } from "@/app/lib/llm/runSummaryReview";
 
 async function runPullRequestReviewJob(prContext: IPullRequestContext) {
-  console.log("🚀 [Job] start");
-  console.log("🔎 [Job] context", {
+  console.log("🚀 [Job] start", {
     owner: prContext.owner,
     repo: prContext.repo,
     pullNumber: prContext.pullNumber,
-    installationId: prContext.installationId,
-    headSha: prContext.headSha,
-    baseSha: prContext.baseSha,
   });
+
   try {
     // 토큰 발급
     const installationToken = await getInstallationAccessToken(

@@ -105,8 +105,7 @@ export async function getInstallationAccessToken(
     throw new Error("설치 토큰 생성 응답에 토큰이 포함되어 있지 않습니다.");
   }
 
-  // Helpful for debugging/token caching if needed later.
-  if (data.expires_at) {
+  if (process.env.DEBUG_GITHUB_TOKEN === "true" && data.expires_at) {
     console.log("ℹ️ [GitHub] installation token issued", {
       installationId,
       expiresAt: data.expires_at,
