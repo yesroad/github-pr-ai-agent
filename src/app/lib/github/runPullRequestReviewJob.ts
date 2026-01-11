@@ -14,76 +14,98 @@ import { runSummaryReview } from "@/app/lib/llm/runSummaryReview";
 
 async function runPullRequestReviewJob(prContext: IPullRequestContext) {
   console.log("🚀 [Job] start");
-
-  // 토큰 발급
-  const installationToken = await getInstallationAccessToken(
-    prContext.installationId
-  );
-
-  // 중복 리뷰 방지
-  const existingReviews = await listPullRequestReviews({
+  console.log("🔎 [Job] context", {
     owner: prContext.owner,
     repo: prContext.repo,
     pullNumber: prContext.pullNumber,
-    installationToken,
-  });
-
-  if (
-    shouldSkipReviewByHeadSha({
-      reviews: existingReviews,
-      headSha: prContext.headSha,
-    })
-  ) {
-    console.log("⏭️ [Job] skipped (already reviewed)");
-    return;
-  }
-
-  // PR diff 조회
-  const diffText = await fetchPullRequestDiff({
-    owner: prContext.owner,
-    repo: prContext.repo,
-    pullNumber: prContext.pullNumber,
-    installationToken,
-  });
-
-  const files = splitDiffByFile(diffText);
-
-  // diff context + meta
-  const { context: diffContext, meta } = diffContextSummary({
-    files,
-    maxFiles: 20,
-    maxCharsPerFile: 8000,
-  });
-
-  const disclaimer = buildReviewDisclaimer(meta);
-
-  // LLM
-  const llmJson = await runSummaryReview(diffContext);
-
-  // markdown
-  const markdown = renderReviewMarkdown(llmJson, {
-    maxIssues: 15,
-    preface: disclaimer,
-  });
-
-  const event = decideReviewEvent(llmJson);
-
-  const finalBody = attachMarkerToBody({
-    body: markdown,
+    installationId: prContext.installationId,
     headSha: prContext.headSha,
+    baseSha: prContext.baseSha,
   });
+  try {
+    // 토큰 발급
+    const installationToken = await getInstallationAccessToken(
+      prContext.installationId
+    );
 
-  // review 생성
-  await createPullRequestReview({
-    owner: prContext.owner,
-    repo: prContext.repo,
-    pullNumber: prContext.pullNumber,
-    installationToken,
-    body: finalBody,
-    event,
-  });
+    // 중복 리뷰 방지
+    const existingReviews = await listPullRequestReviews({
+      owner: prContext.owner,
+      repo: prContext.repo,
+      pullNumber: prContext.pullNumber,
+      installationToken,
+    });
 
-  console.log("✅ [Job] done");
+    if (
+      shouldSkipReviewByHeadSha({
+        reviews: existingReviews,
+        headSha: prContext.headSha,
+      })
+    ) {
+      console.log("⏭️ [Job] skipped (already reviewed)");
+      return;
+    }
+
+    // PR diff 조회
+    const diffText = await fetchPullRequestDiff({
+      owner: prContext.owner,
+      repo: prContext.repo,
+      pullNumber: prContext.pullNumber,
+      installationToken,
+    });
+
+    const files = splitDiffByFile(diffText);
+
+    // diff context + meta
+    const { context: diffContext, meta } = diffContextSummary({
+      files,
+      maxFiles: 20,
+      maxCharsPerFile: 8000,
+    });
+
+    const disclaimer = buildReviewDisclaimer(meta);
+
+    // LLM
+    const llmJson = await runSummaryReview(diffContext);
+
+    // markdown
+    const markdown = renderReviewMarkdown(llmJson, {
+      maxIssues: 15,
+      preface: disclaimer,
+    });
+
+    const event = decideReviewEvent(llmJson);
+
+    const finalBody = attachMarkerToBody({
+      body: markdown,
+      headSha: prContext.headSha,
+    });
+
+    // review 생성
+    await createPullRequestReview({
+      owner: prContext.owner,
+      repo: prContext.repo,
+      pullNumber: prContext.pullNumber,
+      installationToken,
+      body: finalBody,
+      event,
+    });
+
+    console.log("✅ [Job] done");
+  } catch (e) {
+    console.error(
+      "❌ [Job] error",
+      {
+        owner: prContext.owner,
+        repo: prContext.repo,
+        pullNumber: prContext.pullNumber,
+        installationId: prContext.installationId,
+        headSha: prContext.headSha,
+      },
+      e
+    );
+    throw e;
+  }
 }
 
 export default runPullRequestReviewJob;

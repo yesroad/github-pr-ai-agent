@@ -1085,6 +1085,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@vercel/functions@npm:^3.3.5":
+  version: 3.3.5
+  resolution: "@vercel/functions@npm:3.3.5"
+  dependencies:
+    "@vercel/oidc": "npm:3.1.0"
+  peerDependencies:
+    "@aws-sdk/credential-provider-web-identity": "*"
+  peerDependenciesMeta:
+    "@aws-sdk/credential-provider-web-identity":
+      optional: true
+  checksum: 10c0/7cdeb6aa8dc7010bb6c9fa1a04264771fcdba500f4a2c0cabd74db93d0c3d4253c29ca3705ab80bb71b4fc3cf27f680d6f6540b8bc7620a6ca8f026158679e65
+  languageName: node
+  linkType: hard
+
+"@vercel/oidc@npm:3.1.0":
+  version: 3.1.0
+  resolution: "@vercel/oidc@npm:3.1.0"
+  checksum: 10c0/f57278ed4b4c022c7ca85e8baa5f9bdb2623397abfa0e5dbfd75de283c8e5dc534d64dac1364b5ad8c96d00eb2d469886e6f7b640f6f195def5766950ad8ce71
+  languageName: node
+  linkType: hard
+
 "acorn-jsx@npm:^5.3.2":
   version: 5.3.2
   resolution: "acorn-jsx@npm:5.3.2"
@@ -2263,6 +2284,7 @@ __metadata:
     "@types/node": "npm:^20"
     "@types/react": "npm:^19"
     "@types/react-dom": "npm:^19"
+    "@vercel/functions": "npm:^3.3.5"
     babel-plugin-react-compiler: "npm:1.0.0"
     eslint: "npm:^9"
     eslint-config-next: "npm:16.0.7"

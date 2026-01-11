@@ -99,10 +99,18 @@ export async function getInstallationAccessToken(
     );
   }
 
-  const data = (await res.json()) as { token: string };
+  const data = (await res.json()) as { token?: string; expires_at?: string };
 
   if (!data.token) {
     throw new Error("설치 토큰 생성 응답에 토큰이 포함되어 있지 않습니다.");
+  }
+
+  // Helpful for debugging/token caching if needed later.
+  if (data.expires_at) {
+    console.log("ℹ️ [GitHub] installation token issued", {
+      installationId,
+      expiresAt: data.expires_at,
+    });
   }
 
   return data.token;
