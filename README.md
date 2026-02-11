@@ -2,13 +2,13 @@
 
 > **GitHub App + Webhook + OpenAI 통합 자동 코드 리뷰 시스템**
 
-GitHub Pull Request 생성 시 코드 변경 사항을 분석하고,  
+GitHub Pull Request 생성 시 코드 변경 사항을 분석하고,
 OpenAI를 활용해 자동으로 구조화된 코드 리뷰를 남기는 GitHub App입니다.
 
 ## 🎯 제작 배경
 
-개인 프로젝트에서 PR 리뷰어가 없어 피드백을 받기 어려웠습니다.  
-GitHub App과 Webhook을 학습하며 자동화된 코드 리뷰 시스템을 구현했습니다.
+개인 프로젝트에서 PR 리뷰어가 있으면 어떨까 하는 생각에 AI를 활용하여
+GitHub App과 Webhook을 학습하며 자동화된 코드 리뷰 시스템을 구현해보았습니다.
 
 ## 🏗 시스템 구조
 
