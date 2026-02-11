@@ -1,16 +1,14 @@
 # GitHub PR AI Agent 🤖
 
-> **AI 자동 코드 리뷰 시스템**  
-> AI와 페어 프로그래밍으로 제작한 실험적 프로젝트입니다.
+> **GitHub App + Webhook + OpenAI 통합 자동 코드 리뷰 시스템**
 
 GitHub Pull Request 생성 시 코드 변경 사항을 분석하고,  
-LLM(OpenAI)을 활용해 자동으로 코드 리뷰를 남기는 GitHub App입니다.
+OpenAI를 활용해 자동으로 구조화된 코드 리뷰를 남기는 GitHub App입니다.
 
 ## 🎯 제작 배경
 
 개인 프로젝트에서 PR 리뷰어가 없어 피드백을 받기 어려웠습니다.  
-AI에게 물어보며 GitHub App과 Webhook을 학습하고,  
-자동화된 코드 리뷰 시스템을 직접 구현해봤습니다.
+GitHub App과 Webhook을 학습하며 자동화된 코드 리뷰 시스템을 구현했습니다.
 
 ## 🏗 시스템 구조
 
@@ -71,23 +69,33 @@ public/
   └── ...                   # 정적 파일
 ```
 
-## 💡 개발 규칙
-
-- **AI 페어 프로그래밍**: GitHub App 구조를 AI에게 물어가며 학습
-- **실험적**: Webhook, GitHub API, LLM 통합을 직접 경험
-- **실용성**: 실제 개인 프로젝트에 적용하여 사용
-
 ## 🔗 데모
 
 🌐 **배포 URL**: [github-pr-ai-agent.vercel.app](https://github-pr-ai-agent.vercel.app)
 
-## 📌 작동 예시
+## 📌 작동 방식
 
 1. PR 생성 → Webhook 발동
 2. PR diff 추출 및 분석
 3. OpenAI로 리뷰 생성 (JSON 구조화)
 4. GitHub API로 PR 댓글 자동 등록
 5. Commit SHA 저장 (중복 방지)
+
+## 💡 핵심 구현
+
+### Webhook 처리
+- Next.js API Routes로 GitHub Webhook 수신
+- Webhook secret 검증으로 보안 강화
+- PR 이벤트 타입별 분기 처리
+
+### OpenAI 통합
+- Structured Output으로 일관된 리뷰 형식
+- 모범 사례와 개선 제안 구분
+- Token 사용량 최적화
+
+### 중복 방지
+- Commit SHA 기반 추적
+- 동일 커밋에 대한 중복 리뷰 차단
 
 ## 🧪 로컬 개발
 ```bash
